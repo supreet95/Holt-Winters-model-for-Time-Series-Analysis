@@ -1,0 +1,71 @@
+library(forecast)
+library(haven)
+library(fma)
+library(expsmooth)
+library(lmtest)
+library(zoo)
+library(seasonal)
+# Pick stl for decomposition method because the trend changes
+# Loading monthly data sets - training and test
+monthly_train <- read.csv(file="/Users/nrs/Desktop/Time_Series/monthly_train.csv", header=TRUE, sep=",")
+monthly_test <- read.csv(file="/Users/nrs/Desktop/Time_Series/monthly_test.csv", header=TRUE, sep=",")
+# Creation of Time Series Data Object
+pm <- ts(monthly_train$Daily.Mean.PM2.5.Concentration, start=2014, frequency=12)
+# Time Series Decomposition ...STL#
+decomp_stl <- stl(pm, s.window = 7)
+plot(decomp_stl)
+# Plot trend/cycle with data overlaid
+plot(pm, col="grey", main="PM2.5 - Trend/Cycle", xlab="Time", ylab="Concentration (units)", lwd=2)
+lines(decomp_stl$time.series[,2], col="red", lwd=2)
+# Plot seasonally adjusted
+seas=pm-decomp_stl$time.series[,1]
+plot(pm, col="grey", main="PM2.5 - Seasonally Adjusted", xlab="", ylab="Concentration (units)", lwd=2)
+lines(seas, col="red", lwd=2)
+# Simple ESM - MAE = 1.89, MAPE = 18.10
+ES.PM <- ses(pm, initial="optimal", h=6)
+summary(ES.PM)
+plot(ES.PM, main = "PM2.5 with Simple ESM Forecast", xlab="Date", ylab="Concentration (units)")
+abline(v = 2018.4, col = "red", lty = "dashed")
+test.results = forecast(ES.PM, h=6)
+error = monthly_test$Daily.Mean.PM2.5.Concentration-test.results$mean
+
+MAE = mean(abs(error))
+MAPE = 100*mean(abs(error)/abs(monthly_test$Daily.Mean.PM2.5.Concentration))
+# Double/Brown ESM - not in R
+# Linear/Holt ESM - MAE = 2.20, MAPE = 20.75
+LES.PM <- holt(pm, initial="optimal", h=6)
+summary(LES.PM)
+plot(LES.PM, main = "PM2.5 with Linear/Holt ESM Forecast", xlab="Date", ylab="Concentration (units)")
+abline(v = 2018.4, col = "red", lty = "dashed")
+test.results = forecast(LES.PM, h=6)
+error = monthly_test$Daily.Mean.PM2.5.Concentration-test.results$mean
+MAE = mean(abs(error))
+MAPE = 100*mean(abs(error)/abs(monthly_test$Daily.Mean.PM2.5.Concentration))
+# Damped Trend ESM - MAE = 2.01, MAPE = 19.07
+LDES.PM <- holt(pm, initial="optimal", h=6, damped=TRUE)
+summary(LDES.PM)
+plot(LDES.PM, main = "PM2.5 with Linear/Holt Damped ESM Forecast", xlab="Date", ylab="Concentration (units)")
+abline(v = 2018.4, col = "red", lty = "dashed")
+test.results = forecast(LDES.PM, h=6)
+error = monthly_test$Daily.Mean.PM2.5.Concentration-test.results$mean
+MAE = mean(abs(error))
+MAPE = 100*mean(abs(error)/abs(monthly_test$Daily.Mean.PM2.5.Concentration))
+# Winters Additive ESM - MAE = 2.25, MAPE = 22.85
+HWAESM.PM <- hw(pm, seasonal="additive")
+summary(HWAESM.PM)
+plot(HWAESM.PM, main = "PM2.5 with Winters Additive ESM Forecast", xlab="Date", ylab="Concentration (units)")
+abline(v = 2018.4, col = "red", lty = "dashed")
+test.results = forecast(HWAESM.PM, h=6)
+error = monthly_test$Daily.Mean.PM2.5.Concentration-test.results$mean
+MAE = mean(abs(error))
+MAPE = 100*mean(abs(error)/abs(monthly_test$Daily.Mean.PM2.5.Concentration))
+
+# Winters Multiplicative ESM - MAE = 2.03, MAPE = 20.90
+HWMESM.PM <- hw(pm, seasonal="multiplicative")
+summary(HWMESM.PM)
+plot(HWMESM.PM, main = "PM2.5 with Winters Multiplicative ESM Forecast", xlab="Date", ylab="Concentration (units)")
+abline(v = 2018.4, col = "red", lty = "dashed")
+test.results = forecast(HWMESM.PM, h=6)
+error = monthly_test$Daily.Mean.PM2.5.Concentration-test.results$mean
+MAE = mean(abs(error))
+MAPE = 100*mean(abs(error)/abs(monthly_test$Daily.Mean.PM2.5.Concentration))
